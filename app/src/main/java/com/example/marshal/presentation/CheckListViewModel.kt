@@ -103,12 +103,17 @@ class CheckListViewModel(
 
     fun createCheckListNote(onResult: (Boolean) -> Unit) {
         val validItems = checkListItems.filter { it.text.isNotBlank() }
-        val noteTitle = title.value.ifBlank { "Untitled Checklist" }
 
-        if (validItems.isEmpty()) {
-            onResult(false)
+        // 👇 1. Replace your old 'if (validItems.isEmpty())' with this Guard Check
+        // If the user wrote nothing at all, silently "succeed" so the screen just closes.
+        if (title.value.isBlank() && validItems.isEmpty()) {
+            onResult(true)
             return
         }
+
+        // 👇 2. Move your default title logic down here, AFTER the guard check!
+        // This ensures we only assign "Untitled Checklist" if they actually created a task.
+        val noteTitle = title.value.ifBlank { "Untitled Checklist" }
 
         isLoading.value = true
 
@@ -116,11 +121,10 @@ class CheckListViewModel(
             val note = CheckListNote(
                 id = currentNoteId ?: "",
                 title = noteTitle,
-                items = validItems,
+                items = validItems, // (You already did this perfectly!)
                 priority = priority.value,
                 createdOn = System.currentTimeMillis()
             )
-
 
             if (currentNoteId.isNullOrEmpty()) {
                 // It's a brand new note -> Create it

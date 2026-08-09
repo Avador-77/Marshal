@@ -64,11 +64,17 @@ class ToDoViewModel(
     )
 
     fun createNewTask(title: String, description: String, priority: Priority, onResult: (Boolean) -> Unit) {
+        // 👇 Guard Check: Prevent creation if the title is somehow blank
+        if (title.isBlank()) {
+            onResult(false)
+            return
+        }
+
         viewModelScope.launch {
             val task = Task(
                 title = title,
                 description = description,
-                priority = priority, // 👈 Now safely passes the enum straight to the data class
+                priority = priority,
                 isCompleted = false
             )
             repo.createTask(task) { isSuccess ->
@@ -78,6 +84,12 @@ class ToDoViewModel(
     }
 
     fun updateTask(updatedTask: Task, onComplete: (Boolean) -> Unit = {}) {
+        // 👇 Guard Check: If auto-save sends a blank title, ignore the update and silently "succeed"
+        if (updatedTask.title.isBlank()) {
+            onComplete(true)
+            return
+        }
+
         viewModelScope.launch {
             repo.updateTask(updatedTask) { isSuccess ->
                 onComplete(isSuccess)
@@ -86,6 +98,13 @@ class ToDoViewModel(
     }
 
     fun updateCheckListNote(note: CheckListNote, onComplete: (Boolean) -> Unit = {}) {
+        // 👇 Guard Check: Ignore updates for completely empty checklists
+        val hasValidItems = note.items.any { it.text.isNotBlank() }
+        if (note.title.isBlank() && !hasValidItems) {
+            onComplete(true)
+            return
+        }
+
         viewModelScope.launch {
             repo.updateCheckListNote(note) { isSuccess ->
                 onComplete(isSuccess)

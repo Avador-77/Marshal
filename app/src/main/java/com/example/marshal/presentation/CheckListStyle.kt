@@ -3,6 +3,7 @@ package com.example.marshal.presentation
 import android.annotation.SuppressLint
 import android.widget.CheckBox
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -92,6 +93,24 @@ fun CheckListNote(
 
     val focusRequesters = remember { mutableStateMapOf<String, FocusRequester>() }
 
+    // 1. Unified function to handle auto-saving
+    fun performAutoSaveAndExit() {
+        val hasContent = titleText.isNotBlank() || checkListItems.any { it.text.isNotBlank() }
+
+        if (hasContent && !isLoading) {
+            viewModel.createCheckListNote { isSuccess ->
+                onNavigateBack() // Exit whether it succeeds or fails to avoid trapping the user
+            }
+        } else {
+            onNavigateBack() // If it's completely empty, just go back
+        }
+    }
+
+    // 2. Intercept the hardware back button / swipe gesture
+    BackHandler {
+        performAutoSaveAndExit()
+    }
+
     LaunchedEffect(existingNote) {
         if (existingNote != null) {
             viewModel.loadExistingNote(existingNote)
@@ -108,7 +127,8 @@ fun CheckListNote(
             TopAppBar(
                 title = {},
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
+                    // 👇 Changed from onNavigateBack to performAutoSaveAndExit()
+                    IconButton(onClick = { performAutoSaveAndExit() }) {
                         Icon(
                             imageVector = Icons.Default.ArrowBack,
                             contentDescription = "back"
@@ -127,10 +147,15 @@ fun CheckListNote(
                     if (!isLoading) {
                         viewModel.createCheckListNote { isSuccess ->
                             if (isSuccess) {
-                                Toast.makeText(context, "Checklist Saved!", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "Checklist Saved!", Toast.LENGTH_SHORT)
+                                    .show()
                                 onNavigateBack() // Go back to Home Screen on success
                             } else {
-                                Toast.makeText(context, "Failed to save checklist", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(
+                                    context,
+                                    "Failed to save checklist",
+                                    Toast.LENGTH_SHORT
+                                ).show()
                             }
                         }
                     }
@@ -207,8 +232,10 @@ fun CheckListNote(
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Priority.values().forEach { prio ->
                         val isSelected = viewModel.priority.value == prio
-                        val containerColor = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent
-                        val contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+                        val containerColor =
+                            if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent
+                        val contentColor =
+                            if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
 
                         Box(
                             modifier = Modifier
@@ -218,7 +245,8 @@ fun CheckListNote(
                                 .padding(horizontal = 12.dp, vertical = 6.dp)
                         ) {
                             Text(
-                                text = prio.name.lowercase().replaceFirstChar { it.uppercase() }, // e.g., "Medium"
+                                text = prio.name.lowercase()
+                                    .replaceFirstChar { it.uppercase() }, // e.g., "Medium"
                                 fontSize = 14.sp,
                                 color = contentColor,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
@@ -290,7 +318,8 @@ fun CheckListNote(
                                         coroutineScope.launch {
                                             kotlinx.coroutines.delay(20.milliseconds)
                                             checkListItems.lastOrNull()?.id?.let { newId ->
-                                                val newFocusRequester = focusRequesters.getOrPut(newId) { FocusRequester() }
+                                                val newFocusRequester =
+                                                    focusRequesters.getOrPut(newId) { FocusRequester() }
                                                 newFocusRequester.requestFocus()
                                             }
                                         }
@@ -303,20 +332,20 @@ fun CheckListNote(
                                 .focusRequester(itemFocusRequester)
                         )
 
-                        if (item.text.isNotEmpty()) {
-                            IconButton(
-                                onClick = {
-                                    focusRequesters.remove(item.id)
-                                    viewModel.removeItem(index)
-                                }
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.DeleteOutline,
-                                    contentDescription = "Delete or clear item",
-                                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                                )
+
+                        IconButton(
+                            onClick = {
+                                focusRequesters.remove(item.id)
+                                viewModel.removeItem(index)
                             }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.DeleteOutline,
+                                contentDescription = "Delete or clear item",
+                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                            )
                         }
+
                     }
                 }
             }

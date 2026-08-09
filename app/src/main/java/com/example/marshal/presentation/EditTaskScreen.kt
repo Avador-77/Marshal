@@ -1,5 +1,6 @@
 package com.example.marshal.presentation
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -44,21 +45,42 @@ fun EditTaskScreen(
         }
     }
 
+    val performAutoSaveAndExit = {
+        val trimmedTitle = title.trim()
+        val updated = task.copy(
+            title = trimmedTitle,
+            description = description.trim(),
+            priority = priority
+        )
+
+        // Only save if the title is valid AND the user actually made changes
+        if (trimmedTitle.isNotEmpty() && updated != task) {
+            onSaveClick(updated)
+        } else {
+            // If the title is empty (invalid) or no changes were made, just safely exit
+            onBackClick()
+        }
+    }
+
+    // 👇 2. Intercept the physical back button / swipe gesture
+    BackHandler {
+        performAutoSaveAndExit()
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Edit Task") },
                 navigationIcon = {
-                    IconButton(onClick = onBackClick) {
+                    // 👇 3. Change onClick to performAutoSaveAndExit
+                    IconButton(onClick = { performAutoSaveAndExit() }) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back"
                         )
                     }
                 }
-
             )
-
         },
         floatingActionButton = {
             FloatingActionButton(
